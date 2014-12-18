@@ -1,0 +1,1260 @@
+---
+title: "Katzen Einzelreports"
+author: "Moritz Schneider"
+date: "Monday, December 02, 2014"
+header-includes:
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+- \fancyhead[CO,CE]{Diffusionsreport Katzen}
+output: pdf_document
+---
+
+#Auswertung Katzen
+
+```{r, echo=FALSE}
+datalist_directory <- "./data"
+datalist_file <- "Data_list.csv"
+source("./src/read_datalist.R")
+source("./src/read_fitvalues.R")
+source("./src/read_statistics.R")
+source("./src/read_voxelvalues.R")
+source("./src/get_median.R")
+source("./src/get_delta.R")
+source("./src/get_fits.R")
+source("./src/get_paramindex.R")
+datalist <- read_datalist(datalist_directory, datalist_file)
+library("ggplot2")
+library(knitr)
+```
+
+Available Data
+
+```{r, echo=FALSE}
+kable(datalist[,2:4])
+voxelvalues <- read_voxelvalues(datalist)
+cats <- summary(datalist$Name)
+```
+
+```{r}
+median.table <- cbind(datalist[,1:2],
+                  sapply(sapply(voxelvalues, function(x) x$ADC), median),
+                  sapply(sapply(voxelvalues, function(x) x$Da), median),
+                  sapply(sapply(voxelvalues, function(x) x$Db), median),
+                  sapply(sapply(voxelvalues, function(x) x$f), median),
+                  sapply(sapply(voxelvalues, function(x) x$Pf), median),
+                  sapply(sapply(voxelvalues, function(x) x$Dk), median),
+                  sapply(sapply(voxelvalues, function(x) x$K), median))
+names(median.table) <- c("Katze.No", "Name", "ADC[mm²/10³s]","D_slow[mm²/10³s]",
+                         "D_fast[mm²/10³s]", "f[%]", "Pf[a.u.]",
+                         "D_kurtosis[mm²/10³s]", "Kurtosis[a.u.]")
+write.table(median.table, paste("./data/Median_values.csv"), sep=";", 
+            row.names = FALSE)
+```
+
+\newpage
+
+```{r, echo=FALSE, warning=FALSE}
+cat = cats[1]
+```
+
+#Report `r names(cat)`
+
+##Übersicht Median-Werte
+
+```{r overview, echo=FALSE, warning=FALSE}
+dir.create(paste("./graphs/", names(cat), sep=""), showWarnings = FALSE)
+medianADC <- array(cat*2-1)
+medianDa <- array(cat*2-1)
+medianDb <- array(cat*2-1)
+medianf <- array(cat*2-1)
+medianPf <- array(cat*2-1)
+medianDk <- array(cat*2-1)
+medianK <- array(cat*2-1)
+messung <- array(cat*2-1)
+for (i in 1:cat) {
+        medianADC[i*2-1] <- median(as.numeric(voxelvalues[[paste(names(cat), i)]]$ADC))
+        medianDa[i*2-1] <- median(as.numeric(voxelvalues[[paste(names(cat), i)]]$Da))
+        medianDb[i*2-1] <- median(as.numeric(voxelvalues[[paste(names(cat), i)]]$Db))
+        medianf[i*2-1] <- median(as.numeric(voxelvalues[[paste(names(cat), i)]]$f))
+        medianPf[i*2-1] <- median(as.numeric(voxelvalues[[paste(names(cat), i)]]$Pf))
+        medianDk[i*2-1] <- median(as.numeric(voxelvalues[[paste(names(cat), i)]]$Dk))
+        medianK[i*2-1] <- median(as.numeric(voxelvalues[[paste(names(cat), i)]]$K))        
+        messung[i*2-1] <- paste("Messung ", i)
+        if (i > 1) {
+                medianADC[i*2-2] <-  as.numeric(wilcox.test(
+                        as.numeric(voxelvalues[[paste(names(cat), i)]]$ADC),
+                        as.numeric(voxelvalues[[paste(names(cat), i-1)]]$ADC),
+                        paired = FALSE)[3])
+                medianDa[i*2-2] <- as.numeric(wilcox.test(
+                        as.numeric(voxelvalues[[paste(names(cat), i)]]$Da),
+                        as.numeric(voxelvalues[[paste(names(cat), i-1)]]$Da),
+                        paired = FALSE)[3])
+                medianDb[i*2-2] <- as.numeric(wilcox.test(
+                        as.numeric(voxelvalues[[paste(names(cat), i)]]$Db),
+                        as.numeric(voxelvalues[[paste(names(cat), i-1)]]$Db),
+                        paired = FALSE)[3])
+                medianf[i*2-2] <- as.numeric(wilcox.test(
+                        as.numeric(voxelvalues[[paste(names(cat), i)]]$f),
+                        as.numeric(voxelvalues[[paste(names(cat), i-1)]]$f),
+                        paired = FALSE)[3])
+                medianPf[i*2-2] <- as.numeric(wilcox.test(
+                        as.numeric(voxelvalues[[paste(names(cat), i)]]$Pf),
+                        as.numeric(voxelvalues[[paste(names(cat), i-1)]]$Pf),
+                        paired = FALSE)[3])
+                medianDk[i*2-2] <- as.numeric(wilcox.test(
+                        as.numeric(voxelvalues[[paste(names(cat), i)]]$Dk),
+                        as.numeric(voxelvalues[[paste(names(cat), i-1)]]$Dk),
+                        paired = FALSE)[3])
+                medianK[i*2-2] <- as.numeric(wilcox.test(
+                        as.numeric(voxelvalues[[paste(names(cat), i)]]$K),
+                        as.numeric(voxelvalues[[paste(names(cat), i-1)]]$K),
+                        paired = FALSE)[3])
+                messung[i*2-2] <- "p-wert"
+        }
+}
+digits <- 5 
+MedianValues <- data.frame(messung, signif(medianADC, digits),
+                           signif(medianDa, digits), signif(medianDb, digits), 
+                           signif(medianf, digits), signif(medianPf, digits), 
+                           signif(medianDk, digits), signif(medianK, digits))
+names(MedianValues) <- c("Messung", "ADC", "D_slow", "D_fast", "Perf f", "Pseudoflow", "D_k", "Kurtosis")
+kable(MedianValues)
+```
+
+##ADC
+
+```{r ADChist, echo=FALSE, warning=FALSE}
+par(mfrow = c(cat,1), mar = c(4,4,2,1))
+for (i in 1:cat) {
+        hist(as.numeric(voxelvalues[[paste(names(cat), i)]]$ADC), 
+             col = i+6, xlim = c (0.5,3.5), 
+             breaks = seq(0,100,by=0.05),  
+             main = paste("ADC Histogram Messung", i, ", Median", medianADC[i*2-1]), 
+             xlab = paste("ADC [mm²/10³s]"), 
+             ylab = paste("Count"))
+        rug(as.numeric(voxelvalues[[paste(names(cat), i)]]$ADC))
+        abline( v = median(as.numeric(voxelvalues[[paste(names(cat), i)]]$ADC)), col = "magenta", lwd =4)
+}
+invisible(dev.print(pdf, paste("./graphs/", names(cat), "/", names(cat), "ADChist.pdf", sep="")))
+invisible(dev.off())
+```
+
+
+```{r ADCgg, echo=FALSE, warning=FALSE}
+tempnames <- c(1:cat)
+templist <- sapply(tempnames,function(x) NULL)
+for (i in 1:cat) {        
+        templist[[i]] <- data.frame(as.numeric(voxelvalues[[paste(names(cat), i)]]$ADC))
+        templist[[i]]$messung <- as.character(i)
+        names(templist[[i]]) <- paste(c("plotdata", "Messung"))        
+}
+plotdata <- templist[[1]]
+for (i in 2:cat) {
+        plotdata <- rbind(plotdata, templist[[i]])
+}
+ggplot(plotdata, aes(plotdata, fill = Messung)) + 
+        xlab("ADC [mm²/10³s]") + 
+        ggtitle("ADC Histogramme") + 
+        geom_density(alpha = 0.4, adjust = 1) + 
+        xlim(0.5, 3.5)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "ADCgg.pdf", sep=""),
+       width = 6.5, height = 4.5)
+ggplot(plotdata, aes(plotdata, fill = Messung)) + 
+        xlab("ADC [mm²/10³s]") + ggtitle("ADC Histogramme") + 
+        geom_histogram(alpha = 0.4, aes(y = ..density..), position = 'identity', binwidth = 0.05) + 
+        xlim(0.5, 3.5)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "ADCgg2.pdf", sep=""),
+       width = 6.5, height = 4.5)
+```
+
+##D_slow
+
+```{r Dahist, echo=FALSE, warning=FALSE}
+par(mfrow = c(cat,1), mar = c(4,4,2,1))
+for (i in 1:cat) {
+        hist(as.numeric(voxelvalues[[paste(names(cat), i)]]$Da), 
+             col = i+6, xlim = c (0.5,3.5), breaks = seq(0,100,by=0.05),  
+             main = paste("Da Histogram Messung", i, ", Median", medianDa[i*2-1]), 
+             xlab = paste("Da [mm²/10³s]"), 
+             ylab = paste("Count"))
+        rug(as.numeric(voxelvalues[[paste(names(cat), i)]]$Da))
+        abline( v = median(as.numeric(voxelvalues[[paste(names(cat), i)]]$Da)), col = "magenta", lwd =4)
+}
+invisible(dev.print(pdf, paste("./graphs/", names(cat), "/", names(cat), "DAhist.pdf", sep="")))
+invisible(dev.off())
+```
+
+
+```{r Dagg, echo=FALSE, warning=FALSE}
+tempnames <- c(1:cat)
+templist <- sapply(tempnames,function(x) NULL)
+for (i in 1:cat) {
+        templist[[i]] <- data.frame(as.numeric(voxelvalues[[paste(names(cat), i)]]$Da))
+        templist[[i]]$messung <- as.character(i)
+        names(templist[[i]]) <- paste(c("plotdata", "Messung"))
+}
+plotdata <- templist[[1]]
+for (i in 2:cat) {
+        plotdata <- rbind(plotdata, templist[[i]])
+}
+ggplot(plotdata, aes(plotdata, fill = Messung)) + xlab("Da [mm²/10³s]") +
+        ggtitle("Da Histogramme") +
+        geom_density(alpha = 0.4, adjust = 1) + xlim(0.5, 3.5)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "Dagg.pdf", sep=""),
+       width = 6.5, height = 4.5)
+ggplot(plotdata, aes(plotdata, fill = Messung)) +
+        xlab("Da [mm²/10³s]") + ggtitle("Da Histogramme") +
+        geom_histogram(alpha = 0.4, aes(y = ..density..), position = 'identity', binwidth = 0.05)+ 
+        xlim(0.5, 3.5)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "Dagg2.pdf", sep=""),
+       width = 6.5, height = 4.5)
+```
+
+##D_fast
+
+```{r Dbhist, echo=FALSE, warning=FALSE}
+par(mfrow = c(cat,1), mar = c(4,4,2,1))
+for (i in 1:cat) {
+        hist(as.numeric(voxelvalues[[paste(names(cat), i)]]$Db), 
+             col = i+6, xlim = c (1,15), breaks = seq(0,100,by=0.2),  
+             main = paste("Db Histogram Messung", i, ", Median", medianDb[i*2-1]), 
+             xlab = paste("Db [mm²/10³s]"), ylab = paste("Count"))
+        rug(as.numeric(voxelvalues[[paste(names(cat), i)]]$Db))
+        abline( v = median(as.numeric(voxelvalues[[paste(names(cat), i)]]$Db)), col = "magenta", lwd =4)
+}
+invisible(dev.print(pdf, paste("./graphs/", names(cat), "/", names(cat), "Dbhist.pdf", sep="")))
+invisible(dev.off())
+```
+
+
+```{r Dbgg, echo=FALSE, warning=FALSE}
+tempnames <- c(1:cat)
+templist <- sapply(tempnames,function(x) NULL)
+for (i in 1:cat) {
+        templist[[i]] <- data.frame(as.numeric(voxelvalues[[paste(names(cat), i)]]$Db))
+        templist[[i]]$messung <- as.character(i)
+        names(templist[[i]]) <- paste(c("plotdata", "Messung"))
+}
+plotdata <- templist[[1]]
+for (i in 2:cat) {
+        plotdata <- rbind(plotdata, templist[[i]])
+}
+ggplot(plotdata, aes(plotdata, fill = Messung)) + xlab("Db [mm²/10³s]") +
+        ggtitle("Db Histogramme") +
+        geom_density(alpha = 0.4, adjust = 1) + xlim(1, 15)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "Dbgg.pdf", sep=""),
+       width = 6.5, height = 4.5)
+ggplot(plotdata, aes(plotdata, fill = Messung)) +
+        xlab("Db [mm²/10³s]") + ggtitle("Db Histogramme") +
+        geom_histogram(alpha = 0.4, aes(y = ..density..), position = 'identity', binwidth = 0.2) + 
+        xlim(1, 15)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "Dbgg2.pdf", sep=""),
+       width = 6.5, height = 4.5)
+```
+
+##Perfusion f
+
+```{r fhist, echo=FALSE, warning=FALSE}
+par(mfrow = c(cat,1), mar = c(4,4,2,1))
+for (i in 1:cat) {
+        hist(as.numeric(voxelvalues[[paste(names(cat), i)]]$f), 
+             col = i+6, xlim = c (0,30), breaks = seq(0,100,by=0.5),  
+             main = paste("f Histogram Messung", i, ", Median", medianf[i*2-1]), 
+             xlab = paste("f [%]"), ylab = paste("Count"))
+        rug(as.numeric(voxelvalues[[paste(names(cat), i)]]$f))
+        abline( v = median(as.numeric(voxelvalues[[paste(names(cat), i)]]$f)), col = "magenta", lwd =4)
+}
+invisible(dev.print(pdf, paste("./graphs/", names(cat), "/", names(cat), "fhist.pdf", sep="")))
+invisible(dev.off())
+```
+
+
+```{r fgg, echo=FALSE, warning=FALSE}
+tempnames <- c(1:cat)
+templist <- sapply(tempnames,function(x) NULL)
+for (i in 1:cat) {
+        templist[[i]] <- data.frame(as.numeric(voxelvalues[[paste(names(cat), i)]]$f))
+        templist[[i]]$messung <- as.character(i)
+        names(templist[[i]]) <- paste(c("plotdata", "Messung"))
+}
+plotdata <- templist[[1]]
+for (i in 2:cat) {
+        plotdata <- rbind(plotdata, templist[[i]])
+}
+ggplot(plotdata, aes(plotdata, fill = Messung)) + xlab("f [%]") +
+        ggtitle("f Histogramme") +
+        geom_density(alpha = 0.4, adjust = 1) + xlim(0, 30)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "fgg.pdf", sep=""),
+       width = 6.5, height = 4.5)
+ggplot(plotdata, aes(plotdata, fill = Messung)) +
+        xlab("f [%]") + ggtitle("f Histogramme") +
+        geom_histogram(alpha = 0.4, aes(y = ..density..), position = 'identity', binwidth = 0.5) + 
+        xlim(0, 30)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "fgg2.pdf", sep=""),
+       width = 6.5, height = 4.5)
+```
+
+##Pseudoflow D_fast*f
+
+```{r Pfhist, echo=FALSE, warning=FALSE}
+par(mfrow = c(cat,1), mar = c(4,4,2,1))
+for (i in 1:cat) {
+        hist(as.numeric(voxelvalues[[paste(names(cat), i)]]$Pf), 
+             col = i+6, xlim = c (0,500), breaks = seq(0,5000,by=5),  
+             main = paste("Pf Histogram Messung", i, ", Median", medianPf[i*2-1]), 
+             xlab = paste("Pf [mm²/10³s*%]"), ylab = paste("Count"))
+        rug(as.numeric(voxelvalues[[paste(names(cat), i)]]$Pf))
+        abline( v = median(as.numeric(voxelvalues[[paste(names(cat), i)]]$Pf)), col = "magenta", lwd =4)
+}
+invisible(dev.print(pdf, paste("./graphs/", names(cat), "/", names(cat), "Pfhist.pdf", sep="")))
+invisible(dev.off())
+```
+
+
+```{r Pfgg, echo=FALSE, warning=FALSE}
+tempnames <- c(1:cat)
+templist <- sapply(tempnames,function(x) NULL)
+for (i in 1:cat) {
+        templist[[i]] <- data.frame(as.numeric(voxelvalues[[paste(names(cat), i)]]$Pf))
+        templist[[i]]$messung <- as.character(i)
+        names(templist[[i]]) <- paste(c("plotdata", "Messung"))
+}
+plotdata <- templist[[1]]
+for (i in 2:cat) {
+        plotdata <- rbind(plotdata, templist[[i]])
+}
+ggplot(plotdata, aes(plotdata, fill = Messung)) + xlab("Pf [mm²/10³s*%]") +
+        ggtitle("Pf Histogramme") +
+        geom_density(alpha = 0.4, adjust = 1) + xlim(0, 500)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "Pfgg.pdf", sep=""),
+       width = 6.5, height = 4.5)
+ggplot(plotdata, aes(plotdata, fill = Messung)) +
+        xlab("Pf [mm²/10³s*%]") + ggtitle("Pf Histogramme") +
+        geom_histogram(alpha = 0.4, aes(y = ..density..), position = 'identity', binwidth = 5) + 
+        xlim(0, 500)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "Pfgg2.pdf", sep=""),
+       width = 6.5, height = 4.5)
+```
+
+##D Kurtosis
+
+```{r Dkhist, echo=FALSE, warning=FALSE}
+par(mfrow = c(cat,1), mar = c(4,4,2,1))
+for (i in 1:cat) {
+        hist(as.numeric(voxelvalues[[paste(names(cat), i)]]$Dk), 
+             col = i+6, xlim = c (0.5,3.5), breaks = seq(0,100,by=0.05),  
+             main = paste("Dk Histogram Messung", i, ", Median", medianDk[i*2-1]), 
+             xlab = paste("Dk [mm²/10³s]"), ylab = paste("Count"))
+        rug(as.numeric(voxelvalues[[paste(names(cat), i)]]$Dk))
+        abline( v = median(as.numeric(voxelvalues[[paste(names(cat), i)]]$Dk)), col = "magenta", lwd =4)
+}
+invisible(dev.print(pdf, paste("./graphs/", names(cat), "/", names(cat), "Dkhist.pdf", sep="")))
+invisible(dev.off())
+```
+
+
+```{r Dkgg, echo=FALSE, warning=FALSE}
+tempnames <- c(1:cat)
+templist <- sapply(tempnames,function(x) NULL)
+for (i in 1:cat) {
+        templist[[i]] <- data.frame(as.numeric(voxelvalues[[paste(names(cat), i)]]$Dk))
+        templist[[i]]$messung <- as.character(i)
+        names(templist[[i]]) <- paste(c("plotdata", "Messung"))
+}
+plotdata <- templist[[1]]
+for (i in 2:cat) {
+        plotdata <- rbind(plotdata, templist[[i]])
+}
+ggplot(plotdata, aes(plotdata, fill = Messung)) + xlab("Dk [mm²/10³s]") +
+        ggtitle("Dk Histogramme") +
+        geom_density(alpha = 0.4, adjust = 1) + xlim(0.5, 3.5)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "Dkgg.pdf", sep=""),
+       width = 6.5, height = 4.5)
+ggplot(plotdata, aes(plotdata, fill = Messung)) +
+        xlab("Dk [mm²/10³s]") + ggtitle("Dk Histogramme") +
+        geom_histogram(alpha = 0.4, aes(y = ..density..), position = 'identity', binwidth = 0.05) + 
+        xlim(0.5, 3.5)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "Dkgg2.pdf", sep=""),
+       width = 6.5, height = 4.5)
+```
+
+##Kurtosis
+
+```{r Khist, echo=FALSE, warning=FALSE}
+par(mfrow = c(cat,1), mar = c(4,4,2,1))
+for (i in 1:cat) {
+        plotdata = as.numeric(voxelvalues[[paste(names(cat), i)]]$K)
+        plotdata[plotdata <= -100] = -100
+        hist(plotdata, 
+             col = i+6, 
+             xlim = c (-1,2), 
+             breaks = seq(-101,100,by=0.05),  
+             main = paste("K Histogram Messung", i, ", Median", medianK[i*2-1]), 
+             xlab = paste("K [a.u.]"), 
+             ylab = paste("Count"))
+        rug(as.numeric(voxelvalues[[paste(names(cat), i)]]$K))
+        abline( v = median(as.numeric(voxelvalues[[paste(names(cat), i)]]$K)), col = "magenta", lwd =4)
+}
+invisible(dev.print(pdf, paste("./graphs/", names(cat), "/", names(cat), "Khist.pdf", sep="")))
+invisible(dev.off())
+```
+
+
+```{r Kgg, echo=FALSE, warning=FALSE}
+tempnames <- c(1:cat)
+templist <- sapply(tempnames,function(x) NULL)
+for (i in 1:cat) {
+        templist[[i]] <- data.frame(as.numeric(voxelvalues[[paste(names(cat), i)]]$K))
+        templist[[i]]$messung <- as.character(i)
+        names(templist[[i]]) <- paste(c("plotdata", "Messung"))
+}
+plotdata <- templist[[1]]
+for (i in 2:cat) {
+        plotdata <- rbind(plotdata, templist[[i]])
+}
+ggplot(plotdata, aes(plotdata, fill = Messung)) + xlab("K [a.u.]") +
+        ggtitle("K Histogramme") +
+        geom_density(alpha = 0.4, adjust = 1) + xlim(-1, 2)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "Kgg.pdf", sep=""),
+       width = 6.5, height = 4.5)
+ggplot(plotdata, aes(plotdata, fill = Messung)) +
+        xlab("K [a.u.]") + ggtitle("K Histogramme") +
+        geom_histogram(alpha = 0.4, aes(y = ..density..), position = 'identity', binwidth = 0.05) + 
+        xlim(-1, 1)
+ggsave(paste("./graphs/", names(cat), "/", names(cat), "Kgg2.pdf", sep=""),
+       width = 6.5, height = 4.5)
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+cat = cats[2]
+```
+
+#Report `r names(cat)`
+
+##Übersicht Median-Werte
+
+```{r cat2overview, ref.label='overview', echo=FALSE, warning=FALSE}
+```
+
+##ADC
+
+```{r cat2ADChist, ref.label='ADChist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat2ADCgg, ref.label='ADCgg', echo=FALSE, warning=FALSE}
+```
+
+##D_slow
+
+```{r cat2Dahist, ref.label='Dahist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat2Dagg, ref.label='Dagg', echo=FALSE, warning=FALSE}
+```
+
+##D_fast
+
+```{r cat2Dbhist, ref.label='Dbhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat2Dbgg, ref.label='Dbgg', echo=FALSE, warning=FALSE}
+```
+
+##Perfusion f
+
+```{r cat2fhist, ref.label='fhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat2fgg, ref.label='fgg', echo=FALSE, warning=FALSE}
+```
+
+##Pseudoflow D_fast*f
+
+```{r cat2Pfhist, ref.label='Pfhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat2Pfgg, ref.label='Pfgg', echo=FALSE, warning=FALSE}
+```
+
+##D Kurtosis
+
+```{r cat2Dkhist, ref.label='Dkhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat2Dkgg, ref.label='Dkgg', echo=FALSE, warning=FALSE}
+```
+
+##Kurtosis
+
+```{r cat2Khist, ref.label='Khist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat2Kgg, ref.label='Kgg', echo=FALSE, warning=FALSE}
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+cat = cats[3]
+```
+
+#Report `r names(cat)`
+
+##Übersicht Median-Werte
+
+```{r cat3overview, ref.label='overview', echo=FALSE, warning=FALSE}
+```
+
+##ADC
+
+```{r cat3ADChist, ref.label='ADChist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat3ADCgg, ref.label='ADCgg', echo=FALSE, warning=FALSE}
+```
+
+##D_slow
+
+```{r cat3Dahist, ref.label='Dahist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat3Dagg, ref.label='Dagg', echo=FALSE, warning=FALSE}
+```
+
+##D_fast
+
+```{r cat3Dbhist, ref.label='Dbhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat3Dbgg, ref.label='Dbgg', echo=FALSE, warning=FALSE}
+```
+
+##Perfusion f
+
+```{r cat3fhist, ref.label='fhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat3fgg, ref.label='fgg', echo=FALSE, warning=FALSE}
+```
+
+##Pseudoflow D_fast*f
+
+```{r cat3Pfhist, ref.label='Pfhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat3Pfgg, ref.label='Pfgg', echo=FALSE, warning=FALSE}
+```
+
+##D Kurtosis
+
+```{r cat3Dkhist, ref.label='Dkhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat3Dkgg, ref.label='Dkgg', echo=FALSE, warning=FALSE}
+```
+
+##Kurtosis
+
+```{r cat3Khist, ref.label='Khist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat3Kgg, ref.label='Kgg', echo=FALSE, warning=FALSE}
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+cat = cats[4]
+```
+
+#Report `r names(cat)`
+
+##Übersicht Median-Werte
+
+```{r cat4overview, ref.label='overview', echo=FALSE, warning=FALSE}
+```
+
+##ADC
+
+```{r cat4ADChist, ref.label='ADChist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat4ADCgg, ref.label='ADCgg', echo=FALSE, warning=FALSE}
+```
+
+##D_slow
+
+```{r cat4Dahist, ref.label='Dahist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat4Dagg, ref.label='Dagg', echo=FALSE, warning=FALSE}
+```
+
+##D_fast
+
+```{r cat4Dbhist, ref.label='Dbhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat4Dbgg, ref.label='Dbgg', echo=FALSE, warning=FALSE}
+```
+
+##Perfusion f
+
+```{r cat4fhist, ref.label='fhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat4fgg, ref.label='fgg', echo=FALSE, warning=FALSE}
+```
+
+##Pseudoflow D_fast*f
+
+```{r cat4Pfhist, ref.label='Pfhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat4Pfgg, ref.label='Pfgg', echo=FALSE, warning=FALSE}
+```
+
+##D Kurtosis
+
+```{r cat4Dkhist, ref.label='Dkhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat4Dkgg, ref.label='Dkgg', echo=FALSE, warning=FALSE}
+```
+
+##Kurtosis
+
+```{r cat4Khist, ref.label='Khist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat4Kgg, ref.label='Kgg', echo=FALSE, warning=FALSE}
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+cat = cats[5]
+```
+
+#Report `r names(cat)`
+
+##Übersicht Median-Werte
+
+```{r cat5overview, ref.label='overview', echo=FALSE, warning=FALSE}
+```
+
+##ADC
+
+```{r cat5ADChist, ref.label='ADChist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat5ADCgg, ref.label='ADCgg', echo=FALSE, warning=FALSE}
+```
+
+##D_slow
+
+```{r cat5Dahist, ref.label='Dahist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat5Dagg, ref.label='Dagg', echo=FALSE, warning=FALSE}
+```
+
+##D_fast
+
+```{r cat5Dbhist, ref.label='Dbhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat5Dbgg, ref.label='Dbgg', echo=FALSE, warning=FALSE}
+```
+
+##Perfusion f
+
+```{r cat5fhist, ref.label='fhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat5fgg, ref.label='fgg', echo=FALSE, warning=FALSE}
+```
+
+##Pseudoflow D_fast*f
+
+```{r cat5Pfhist, ref.label='Pfhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat5Pfgg, ref.label='Pfgg', echo=FALSE, warning=FALSE}
+```
+
+##D Kurtosis
+
+```{r cat5Dkhist, ref.label='Dkhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat5Dkgg, ref.label='Dkgg', echo=FALSE, warning=FALSE}
+```
+
+##Kurtosis
+
+```{r cat5Khist, ref.label='Khist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat5Kgg, ref.label='Kgg', echo=FALSE, warning=FALSE}
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+cat = cats[6]
+```
+
+#Report `r names(cat)`
+
+##Übersicht Median-Werte
+
+```{r cat6overview, ref.label='overview', echo=FALSE, warning=FALSE}
+```
+
+##ADC
+
+```{r cat6ADChist, ref.label='ADChist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat6ADCgg, ref.label='ADCgg', echo=FALSE, warning=FALSE}
+```
+
+##D_slow
+
+```{r cat6Dahist, ref.label='Dahist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat6Dagg, ref.label='Dagg', echo=FALSE, warning=FALSE}
+```
+
+##D_fast
+
+```{r cat6Dbhist, ref.label='Dbhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat6Dbgg, ref.label='Dbgg', echo=FALSE, warning=FALSE}
+```
+
+##Perfusion f
+
+```{r cat6fhist, ref.label='fhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat6fgg, ref.label='fgg', echo=FALSE, warning=FALSE}
+```
+
+##Pseudoflow D_fast*f
+
+```{r cat6Pfhist, ref.label='Pfhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat6Pfgg, ref.label='Pfgg', echo=FALSE, warning=FALSE}
+```
+
+##D Kurtosis
+
+```{r cat6Dkhist, ref.label='Dkhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat6Dkgg, ref.label='Dkgg', echo=FALSE, warning=FALSE}
+```
+
+##Kurtosis
+
+```{r cat6Khist, ref.label='Khist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat6Kgg, ref.label='Kgg', echo=FALSE, warning=FALSE}
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+cat = cats[7]
+```
+
+#Report `r names(cat)`
+
+##Übersicht Median-Werte
+
+```{r cat7overview, ref.label='overview', echo=FALSE, warning=FALSE}
+```
+
+##ADC
+
+```{r cat7ADChist, ref.label='ADChist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat7ADCgg, ref.label='ADCgg', echo=FALSE, warning=FALSE}
+```
+
+##D_slow
+
+```{r cat7Dahist, ref.label='Dahist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat7Dagg, ref.label='Dagg', echo=FALSE, warning=FALSE}
+```
+
+##D_fast
+
+```{r cat7Dbhist, ref.label='Dbhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat7Dbgg, ref.label='Dbgg', echo=FALSE, warning=FALSE}
+```
+
+##Perfusion f
+
+```{r cat7fhist, ref.label='fhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat7fgg, ref.label='fgg', echo=FALSE, warning=FALSE}
+```
+
+##Pseudoflow D_fast*f
+
+```{r cat7Pfhist, ref.label='Pfhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat7Pfgg, ref.label='Pfgg', echo=FALSE, warning=FALSE}
+```
+
+##D Kurtosis
+
+```{r cat7Dkhist, ref.label='Dkhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat7Dkgg, ref.label='Dkgg', echo=FALSE, warning=FALSE}
+```
+
+##Kurtosis
+
+```{r cat7Khist, ref.label='Khist', echo=FALSE, warning=FALSE}
+```
+
+
+
+```{r cat7Kgg, ref.label='Kgg', echo=FALSE, warning=FALSE}
+```
+```{r, echo=FALSE, warning=FALSE}
+cat = cats[8]
+```
+
+#Report `r names(cat)`
+
+##Übersicht Median-Werte
+
+```{r cat8overview, ref.label='overview', echo=FALSE, warning=FALSE}
+```
+
+##ADC
+
+```{r cat8ADChist, ref.label='ADChist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat8ADCgg, ref.label='ADCgg', echo=FALSE, warning=FALSE}
+```
+
+##D_slow
+
+```{r cat8Dahist, ref.label='Dahist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat8Dagg, ref.label='Dagg', echo=FALSE, warning=FALSE}
+```
+
+##D_fast
+
+```{r cat8Dbhist, ref.label='Dbhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat8Dbgg, ref.label='Dbgg', echo=FALSE, warning=FALSE}
+```
+
+##Perfusion f
+
+```{r cat8fhist, ref.label='fhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat8fgg, ref.label='fgg', echo=FALSE, warning=FALSE}
+```
+
+##Pseudoflow D_fast*f
+
+```{r cat8Pfhist, ref.label='Pfhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat8Pfgg, ref.label='Pfgg', echo=FALSE, warning=FALSE}
+```
+
+##D Kurtosis
+
+```{r cat8Dkhist, ref.label='Dkhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat8Dkgg, ref.label='Dkgg', echo=FALSE, warning=FALSE}
+```
+
+##Kurtosis
+
+```{r cat8Khist, ref.label='Khist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat8Kgg, ref.label='Kgg', echo=FALSE, warning=FALSE}
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+cat = cats[9]
+```
+
+#Report `r names(cat)`
+
+##Übersicht Median-Werte
+
+```{r cat9overview, ref.label='overview', echo=FALSE, warning=FALSE}
+```
+
+##ADC
+
+```{r cat9ADChist, ref.label='ADChist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat9ADCgg, ref.label='ADCgg', echo=FALSE, warning=FALSE}
+```
+
+##D_slow
+
+```{r cat9Dahist, ref.label='Dahist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat9Dagg, ref.label='Dagg', echo=FALSE, warning=FALSE}
+```
+
+##D_fast
+
+```{r cat9Dbhist, ref.label='Dbhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat9Dbgg, ref.label='Dbgg', echo=FALSE, warning=FALSE}
+```
+
+##Perfusion f
+
+```{r cat9fhist, ref.label='fhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat9fgg, ref.label='fgg', echo=FALSE, warning=FALSE}
+```
+
+##Pseudoflow D_fast*f
+
+```{r cat9Pfhist, ref.label='Pfhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat9Pfgg, ref.label='Pfgg', echo=FALSE, warning=FALSE}
+```
+
+##D Kurtosis
+
+```{r cat9Dkhist, ref.label='Dkhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat9Dkgg, ref.label='Dkgg', echo=FALSE, warning=FALSE}
+```
+
+##Kurtosis
+
+```{r cat9Khist, ref.label='Khist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat9Kgg, ref.label='Kgg', echo=FALSE, warning=FALSE}
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+cat = cats[10]
+```
+
+#Report `r names(cat)`
+
+##Übersicht Median-Werte
+
+```{r cat10overview, ref.label='overview', echo=FALSE, warning=FALSE}
+```
+
+##ADC
+
+```{r cat10ADChist, ref.label='ADChist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat10ADCgg, ref.label='ADCgg', echo=FALSE, warning=FALSE}
+```
+
+##D_slow
+
+```{r cat10Dahist, ref.label='Dahist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat10Dagg, ref.label='Dagg', echo=FALSE, warning=FALSE}
+```
+
+##D_fast
+
+```{r cat10Dbhist, ref.label='Dbhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat10Dbgg, ref.label='Dbgg', echo=FALSE, warning=FALSE}
+```
+
+##Perfusion f
+
+```{r cat10fhist, ref.label='fhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat10fgg, ref.label='fgg', echo=FALSE, warning=FALSE}
+```
+
+##Pseudoflow D_fast*f
+
+```{r cat10Pfhist, ref.label='Pfhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat10Pfgg, ref.label='Pfgg', echo=FALSE, warning=FALSE}
+```
+
+##D Kurtosis
+
+```{r cat10Dkhist, ref.label='Dkhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat10Dkgg, ref.label='Dkgg', echo=FALSE, warning=FALSE}
+```
+
+##Kurtosis
+
+```{r cat10Khist, ref.label='Khist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat10Kgg, ref.label='Kgg', echo=FALSE, warning=FALSE}
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+cat = cats[11]
+```
+
+#Report `r names(cat)`
+
+##Übersicht Median-Werte
+
+```{r cat11overview, ref.label='overview', echo=FALSE, warning=FALSE}
+```
+
+##ADC
+
+```{r cat11ADChist, ref.label='ADChist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat11ADCgg, ref.label='ADCgg', echo=FALSE, warning=FALSE}
+```
+
+##D_slow
+
+```{r cat11Dahist, ref.label='Dahist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat11Dagg, ref.label='Dagg', echo=FALSE, warning=FALSE}
+```
+
+##D_fast
+
+```{r cat11Dbhist, ref.label='Dbhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat11Dbgg, ref.label='Dbgg', echo=FALSE, warning=FALSE}
+```
+
+##Perfusion f
+
+```{r cat11fhist, ref.label='fhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat11fgg, ref.label='fgg', echo=FALSE, warning=FALSE}
+```
+
+##Pseudoflow D_fast*f
+
+```{r cat11Pfhist, ref.label='Pfhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat11Pfgg, ref.label='Pfgg', echo=FALSE, warning=FALSE}
+```
+
+##D Kurtosis
+
+```{r cat11Dkhist, ref.label='Dkhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat11Dkgg, ref.label='Dkgg', echo=FALSE, warning=FALSE}
+```
+
+##Kurtosis
+
+```{r cat11Khist, ref.label='Khist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat11Kgg, ref.label='Kgg', echo=FALSE, warning=FALSE}
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+cat = cats[12]
+```
+
+#Report `r names(cat)`
+
+##Übersicht Median-Werte
+
+```{r cat12overview, ref.label='overview', echo=FALSE, warning=FALSE}
+```
+
+##ADC
+
+```{r cat12ADChist, ref.label='ADChist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat12ADCgg, ref.label='ADCgg', echo=FALSE, warning=FALSE}
+```
+
+##D_slow
+
+```{r cat12Dahist, ref.label='Dahist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat12Dagg, ref.label='Dagg', echo=FALSE, warning=FALSE}
+```
+
+##D_fast
+
+```{r cat12Dbhist, ref.label='Dbhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat12Dbgg, ref.label='Dbgg', echo=FALSE, warning=FALSE}
+```
+
+##Perfusion f
+
+```{r cat12fhist, ref.label='fhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat12fgg, ref.label='fgg', echo=FALSE, warning=FALSE}
+```
+
+##Pseudoflow D_fast*f
+
+```{r cat12Pfhist, ref.label='Pfhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat12Pfgg, ref.label='Pfgg', echo=FALSE, warning=FALSE}
+```
+
+##D Kurtosis
+
+```{r cat12Dkhist, ref.label='Dkhist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat12Dkgg, ref.label='Dkgg', echo=FALSE, warning=FALSE}
+```
+
+##Kurtosis
+
+```{r cat12Khist, ref.label='Khist', echo=FALSE, warning=FALSE}
+```
+
+
+```{r cat12Kgg, ref.label='Kgg', echo=FALSE, warning=FALSE}
+```
