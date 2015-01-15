@@ -35,8 +35,8 @@ voxelvalues <- read_voxelvalues(datalist)
 cats <- summary(datalist$Name)
 ```
 
-```{r}
-median.table <- cbind(datalist[,1:2],
+```{r, echo=FALSE}
+median.table <- cbind(datalist[,1:3],
                   sapply(sapply(voxelvalues, function(x) x$ADC), median),
                   sapply(sapply(voxelvalues, function(x) x$Da), median),
                   sapply(sapply(voxelvalues, function(x) x$Db), median),
@@ -44,7 +44,7 @@ median.table <- cbind(datalist[,1:2],
                   sapply(sapply(voxelvalues, function(x) x$Pf), median),
                   sapply(sapply(voxelvalues, function(x) x$Dk), median),
                   sapply(sapply(voxelvalues, function(x) x$K), median))
-names(median.table) <- c("Katze.No", "Name", "ADC[mm²/10³s]","D_slow[mm²/10³s]",
+names(median.table) <- c("Katze.No", "Name", "Messung", "ADC[mm²/10³s]","D_slow[mm²/10³s]",
                          "D_fast[mm²/10³s]", "f[%]", "Pf[a.u.]",
                          "D_kurtosis[mm²/10³s]", "Kurtosis[a.u.]")
 write.table(median.table, paste("./data/Median_values.csv"), sep=";", 
